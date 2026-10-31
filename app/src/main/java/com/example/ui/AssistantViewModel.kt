@@ -10,12 +10,16 @@ import androidx.lifecycle.viewModelScope
 import com.example.ai.AssistantOrchestrator
 import com.example.ai.GeminiAiEngine
 import com.example.data.local.ShadowDatabase
+import com.example.data.model.AppLanguage
 import com.example.data.model.AssistantExpression
 import com.example.data.model.AssistantTaskNote
+import com.example.data.model.AuthProvider
+import com.example.data.model.AuthUser
 import com.example.data.model.ChatMessage
 import com.example.data.model.DeviceStatus
 import com.example.data.model.InstalledAppInfo
 import com.example.data.model.MemoryItem
+import com.example.data.model.SleepPhase
 import com.example.service.FloatingAssistantService
 import com.example.tools.DeviceToolManager
 import com.example.voice.ElevenLabsTtsEngine
@@ -37,7 +41,8 @@ enum class AssistantSheet {
   MEMORIES,
   TOOLS,
   EXPRESSIONS,
-  SETTINGS
+  SETTINGS,
+  ONBOARDING
 }
 
 class AssistantViewModel(application: Application) : AndroidViewModel(application) {
@@ -103,6 +108,20 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
   private val _isDynamicIslandExpanded = MutableStateFlow(false)
   val isDynamicIslandExpanded: StateFlow<Boolean> = _isDynamicIslandExpanded.asStateFlow()
 
+  // Language state (defaults to Arabic, toggleable)
+  private val _appLanguage = MutableStateFlow(
+    if (sharedPrefs.getString("app_lang", "ar") == "en") AppLanguage.ENGLISH else AppLanguage.ARABIC
+  )
+  val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
+
+  // Fluid Sleep Transition State
+  private val _sleepPhase = MutableStateFlow(SleepPhase.AWAKE)
+  val sleepPhase: StateFlow<SleepPhase> = _sleepPhase.asStateFlow()
+
+  // User Profile
+  private val _currentUser = MutableStateFlow<AuthUser?>(loadUserFromPrefs())
+  val currentUser: StateFlow<AuthUser?> = _currentUser.asStateFlow()
+
   private var lastInteractionTime = System.currentTimeMillis()
 
   val isGeminiConfigured: Boolean
@@ -139,26 +158,88 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
     loadInstalledApps()
     seedInitialMemoriesIfNeeded()
     startIdleSleepTimer()
+
+    // If first launch, show onboarding
+    if (!sharedPrefs.getBoolean("has_completed_onboarding", false)) {
+      _activeSheet.value = AssistantSheet.ONBOARDING
+    }
   }
 
+  private fun loadUserFromPrefs(): AuthUser {
+    val uid = sharedPrefs.getString("user_uid", "hydra_dev_1") ?: "hydra_dev_1"
+    val name = sharedPrefs.getString("user_name", "Hydra Owner") ?: "Hydra Owner"
+    val email = sharedPrefs.getString("user_email", "hydra@device.ai") ?: "hydra@device.ai"
+    val providerStr = sharedPrefs.getString("user_provider", "GOOGLE") ?: "GOOGLE"
+    val provider = try { AuthProvider.valueOf(providerStr) } catch (_: Exception) { AuthProvider.GOOGLE }
+    return AuthUser(uid = uid, displayName = name, email = email, provider = provider)
+  }
+
+  fun setLanguage(lang: AppLanguage) {
+    _appLanguage.value = lang
+    sharedPrefs.edit().putString("app_lang", lang.code).apply()
+    registerInteraction()
+  }
+
+  fun toggleLanguage() {
+    val next = if (_appLanguage.value == AppLanguage.ARABIC) AppLanguage.ENGLISH else AppLanguage.ARABIC
+    setLanguage(next)
+  }
+
+  fun signInUser(user: AuthUser) {
+    _currentUser.value = user
+    sharedPrefs.edit()
+      .putString("user_uid", user.uid)
+      .putString("user_name", user.displayName)
+      .putString("user_email", user.email)
+      .putString("user_provider", user.provider.name)
+      .apply()
+    registerInteraction()
+  }
+
+  fun completeOnboarding() {
+    sharedPrefs.edit().putBoolean("has_completed_onboarding", true).apply()
+    _activeSheet.value = AssistantSheet.NONE
+    registerInteraction()
+    val welcomeMsg = if (_appLanguage.value == AppLanguage.ARABIC)
+      "أهلاً بك! مساعد هايدرا جاهز وفي خدمتك دائماً!"
+    else
+      "Welcome! HyDraXx is awake and ready to serve you!"
+    fallbackTts.speak(welcomeMsg)
+  }
+
+  fun openOnboarding() {
+    _activeSheet.value = AssistantSheet.ONBOARDING
+  }
+
+  // Fluid multi-step sleep sequence timer
   private fun startIdleSleepTimer() {
     viewModelScope.launch {
       while (true) {
-        delay(3000)
+        delay(2500)
         val elapsed = System.currentTimeMillis() - lastInteractionTime
         val currentExp = currentExpression.value
         val isVoiceBusy = voiceState.value is VoiceState.Listening || isSpeaking.value || isThinking.value
 
         if (!isVoiceBusy) {
-          if (elapsed > 45_000 && currentExp != AssistantExpression.SLEEPING) {
-            // Drift into deep sleep with z Z
-            orchestrator.setExpression(AssistantExpression.SLEEPING)
-          } else if (elapsed > 22_000 && currentExp != AssistantExpression.TIRED && currentExp != AssistantExpression.SLEEPING) {
-            // Yawn / get sleepy
-            orchestrator.setExpression(AssistantExpression.TIRED)
-          } else if (elapsed > 12_000 && currentExp == AssistantExpression.NEUTRAL) {
-            // Glance around with curiosity
-            orchestrator.setExpression(AssistantExpression.CURIOUS)
+          when {
+            elapsed > 45_000 && _sleepPhase.value != SleepPhase.DEEP_SLEEP -> {
+              _sleepPhase.value = SleepPhase.DEEP_SLEEP
+              orchestrator.setExpression(AssistantExpression.SLEEPING)
+            }
+            elapsed > 28_000 && _sleepPhase.value != SleepPhase.DROWSY && _sleepPhase.value != SleepPhase.DEEP_SLEEP -> {
+              _sleepPhase.value = SleepPhase.DROWSY
+              orchestrator.setExpression(AssistantExpression.TIRED)
+            }
+            elapsed > 18_000 && _sleepPhase.value == SleepPhase.AWAKE && currentExp != AssistantExpression.TIRED -> {
+              _sleepPhase.value = SleepPhase.YAWNING
+              delay(1600)
+              if (System.currentTimeMillis() - lastInteractionTime > 18_000) {
+                _sleepPhase.value = SleepPhase.DROWSY
+              }
+            }
+            elapsed > 10_000 && _sleepPhase.value == SleepPhase.AWAKE && currentExp == AssistantExpression.NEUTRAL -> {
+              orchestrator.setExpression(AssistantExpression.CURIOUS)
+            }
           }
         }
       }
@@ -166,10 +247,19 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
   }
 
   fun registerInteraction() {
-    val wasSleeping = currentExpression.value == AssistantExpression.SLEEPING || currentExpression.value == AssistantExpression.TIRED
+    val wasAsleep = _sleepPhase.value == SleepPhase.DEEP_SLEEP || _sleepPhase.value == SleepPhase.DROWSY
     lastInteractionTime = System.currentTimeMillis()
-    if (wasSleeping) {
-      orchestrator.setExpression(AssistantExpression.SURPRISED)
+
+    if (wasAsleep) {
+      viewModelScope.launch {
+        _sleepPhase.value = SleepPhase.WAKING_BURST
+        orchestrator.setExpression(AssistantExpression.SURPRISED)
+        delay(600)
+        _sleepPhase.value = SleepPhase.AWAKE
+        orchestrator.setExpression(AssistantExpression.HAPPY)
+      }
+    } else {
+      _sleepPhase.value = SleepPhase.AWAKE
     }
   }
 
@@ -182,7 +272,8 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
     registerInteraction()
     _isDynamicIslandExpanded.value = true
     orchestrator.setExpression(AssistantExpression.HAPPY)
-    fallbackTts.speak("Hey! HyDraXx is here!")
+    val quote = if (_appLanguage.value == AppLanguage.ARABIC) "أنا هنا معك!" else "Hey! HyDraXx is here!"
+    fallbackTts.speak(quote)
   }
 
   private fun seedInitialMemoriesIfNeeded() {
@@ -225,7 +316,8 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
 
   fun startVoiceInput(languageCode: String = "auto") {
     registerInteraction()
-    voiceManager.startListening(languageCode)
+    val langParam = if (languageCode != "auto") languageCode else _appLanguage.value.code
+    voiceManager.startListening(langParam)
   }
 
   fun stopVoiceInput() {
@@ -311,9 +403,9 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
     _selectedVoiceId.value = voiceId
     sharedPrefs.edit().putString("eleven_voice", voiceId).apply()
     elevenLabsEngine.setVoiceId(voiceId)
-    // Quick preview utterance
     viewModelScope.launch {
-      elevenLabsEngine.speak("HyDraXx voice profile updated!")
+      val testText = if (_appLanguage.value == AppLanguage.ARABIC) "تم تحديث نبرة صوت هايدرا بنجاح!" else "HyDraXx voice profile updated!"
+      elevenLabsEngine.speak(testText)
     }
   }
 
