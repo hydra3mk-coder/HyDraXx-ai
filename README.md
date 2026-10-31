@@ -8,6 +8,17 @@
 [![Gemini](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-orange.svg)](https://ai.google.dev)
 [![ElevenLabs](https://img.shields.io/badge/Voice-ElevenLabs-black.svg)](https://elevenlabs.io)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Download APK](https://img.shields.io/badge/Download-APK%20(v1.0.0--beta)-brightgreen?logo=android)](release/HyDraXx-v1.0.0-beta.apk)
+
+---
+
+## 📲 Direct APK Download (Android)
+
+You can download the pre-built APK directly from the repository and install it immediately on your phone:
+
+📥 **[HyDraXx-v1.0.0-beta.apk](./release/HyDraXx-v1.0.0-beta.apk)** (~23 MB)
+
+> **Installation note**: Since this is a direct APK build (side-loaded), enable *"Install unknown apps"* in your Android Settings when prompted by your file manager.
 
 ---
 
