@@ -1,7 +1,8 @@
-# HyDraXx 👁️✨
+# HyDraXx 👁️✨ `v1.0.0-BETA`
 > **An intelligent, expressive dark AI companion living inside your Android device.**
 
 [![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
+[![Status](https://img.shields.io/badge/Status-BETA%20Early%20Access-orange.svg)](#)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-blue.svg)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-brightgreen.svg)](https://developer.android.com/jetpack/compose)
 [![Gemini](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-orange.svg)](https://ai.google.dev)

@@ -61,6 +61,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.ShadowAccentAmber
 import com.example.ui.theme.ShadowAccentCyan
 import com.example.ui.theme.ShadowAccentGreen
 import com.example.ui.theme.ShadowAccentPurple
@@ -443,6 +444,45 @@ fun SettingsSheet(
             color = ShadowGlowMuted,
             fontSize = 11.sp,
             lineHeight = 16.sp
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      // 6. Beta Version Card
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(12.dp))
+          .background(ShadowSurfaceDark)
+          .border(1.dp, ShadowSurfaceBorder, RoundedCornerShape(12.dp))
+          .padding(12.dp),
+        contentAlignment = Alignment.Center
+      ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+              text = "HyDraXx",
+              color = ShadowGlowWhite,
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Bold
+            )
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(ShadowAccentAmber.copy(alpha = 0.2f))
+                .border(1.dp, ShadowAccentAmber.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 1.dp)
+            ) {
+              Text("v1.0.0-BETA", color = ShadowAccentAmber, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+          }
+          Spacer(modifier = Modifier.height(4.dp))
+          Text(
+            text = "Early Access Build • Personal AI Companion for Android",
+            color = ShadowGlowMuted,
+            fontSize = 10.sp
           )
         }
       }

@@ -70,6 +70,7 @@ import com.example.ui.components.SettingsSheet
 import com.example.ui.components.ShadowFaceView
 import com.example.ui.components.ToolsSheet
 import com.example.ui.components.VoiceWaveBar
+import com.example.ui.theme.ShadowAccentAmber
 import com.example.ui.theme.ShadowAccentCyan
 import com.example.ui.theme.ShadowAccentGreen
 import com.example.ui.theme.ShadowAccentPurple
@@ -203,6 +204,21 @@ fun MainAssistantScreen(
               fontWeight = FontWeight.Black,
               letterSpacing = 2.sp
             )
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(ShadowAccentAmber.copy(alpha = 0.2f))
+                .border(1.dp, ShadowAccentAmber.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+              Text(
+                text = "BETA",
+                color = ShadowAccentAmber,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+              )
+            }
             Box(
               modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
