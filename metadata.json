@@ -1,0 +1,6 @@
+{
+  "name": "HyDraXx",
+  "description": "Your cute, living on-device AI companion with dynamic island presence, ElevenLabs voice, idle sleep animation, and full Android system controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
